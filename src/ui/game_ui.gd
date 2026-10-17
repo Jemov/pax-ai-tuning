@@ -1,6 +1,6 @@
 extends Node
 ## Demonstration adapter for the native Settings → AI page. No menu items or modal.
-const AdvancedPanelScript = preload("res://mods/ai_tuning/advanced_panel.gd")
+const AdvancedPanelScript = preload("res://mods/ai_tuning/src/ui/advanced_panel.gd")
 var owner_mod: Node
 var api: Node
 var panel: PanelContainer

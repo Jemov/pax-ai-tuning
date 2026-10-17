@@ -1,6 +1,6 @@
 extends Node
 ## Optional selected-model metadata; no prompts, credentials or catalogue persistence.
-const Identity = preload("res://mods/ai_tuning/identity.gd")
+const Identity = preload("res://mods/ai_tuning/src/domain/identity.gd")
 const MAX_BYTES := 4194304
 signal changed
 var _cache: Dictionary = {}

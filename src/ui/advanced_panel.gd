@@ -1,6 +1,6 @@
 extends PanelContainer
 ## Per-target generation preferences. No credentials, native settings or I/O.
-const Policy = preload("res://mods/ai_tuning/profile_policy.gd")
+const Policy = preload("res://mods/ai_tuning/src/domain/profile_policy.gd")
 signal capabilities_requested(base: String, model: String)
 var owner_mod: Node
 var target_base := ""

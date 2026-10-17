@@ -1,8 +1,8 @@
 extends PaxMod
 ## Native settings stay opaque. Only public identities and generation preferences persist.
-const Policy = preload("res://mods/ai_tuning/profile_policy.gd")
-const Identity = preload("res://mods/ai_tuning/identity.gd")
-const Metadata = preload("res://mods/ai_tuning/metadata.gd")
+const Policy = preload("res://mods/ai_tuning/src/domain/profile_policy.gd")
+const Identity = preload("res://mods/ai_tuning/src/domain/identity.gd")
+const Metadata = preload("res://mods/ai_tuning/src/domain/metadata.gd")
 signal profiles_changed
 var _ui: Node
 var _game_ui: Node
@@ -48,7 +48,7 @@ func _mod_loaded() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_metadata = Metadata.new(); add_child(_metadata)
 	_metadata.changed.connect(func(): profiles_changed.emit())
-	var ui_script: Resource = load_resource("launcher_ui.gd")
+	var ui_script: Resource = load_resource("src/ui/launcher_ui.gd")
 	if ui_script is Script:
 		_ui = ui_script.new(); add_child(_ui); _ui.setup(self)
 	_setup_game_ui()
@@ -66,7 +66,7 @@ func _world_ready(_game: PaxGame) -> void:
 
 func _setup_game_ui() -> void:
 	if is_instance_valid(_game_ui): return
-	var script: Resource = load_resource("game_ui.gd")
+	var script: Resource = load_resource("src/ui/game_ui.gd")
 	if script is Script:
 		_game_ui = script.new(); add_child(_game_ui); _game_ui.setup(self,_api())
 

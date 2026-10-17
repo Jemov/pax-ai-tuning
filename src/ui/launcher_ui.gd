@@ -1,7 +1,7 @@
 extends Node
 ## Live node adapter; all native script references come from the active form.
 ## Never preloads/replaces native scenes and never persists form credentials.
-const AdvancedPanelScript = preload("res://mods/ai_tuning/advanced_panel.gd")
+const AdvancedPanelScript = preload("res://mods/ai_tuning/src/ui/advanced_panel.gd")
 var owner_mod: Node
 var panel: PanelContainer
 var drafts: Dictionary = {}
