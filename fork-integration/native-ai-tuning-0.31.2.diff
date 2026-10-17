@@ -1,0 +1,222 @@
+--- a/src/ai/Provider.gd
++++ b/src/ai/Provider.gd
+@@ -1,4 +1,26 @@
+ extends Node
++const GenerationProfileScript = preload("res://src/ai/tuning/GenerationProfile.gd")
++var generation_error: Array = []
++
++func generation_profile() -> Dictionary:
++	return GenerationProfileScript.current(base_url,model)
++
++func generation_output_limit(fallback: int, small_request: bool = false) -> int:
++	return GenerationProfileScript.output_limit(generation_profile(),fallback,small_request)
++
++func generation_timeout(fallback: float) -> float:
++	return GenerationProfileScript.timeout(generation_profile(),fallback)
++
++func generation_request_timeout(destination: HTTPRequest) -> float:
++	var fallback: float = 0.0 if _without_term() else clampf(wait_sec,30.0,900.0)
++	if destination == http_results: fallback *= 2.0
++	elif destination == http_argument: fallback = 0.0 if _without_term() else 60.0
++	return generation_timeout(fallback)
++
++func generation_failure(destination: HTTPRequest, errors: Array, code: String = "generation_settings_invalid") -> bool:
++	destination.set_meta("generation_settings_error",true)
++	_curl_answer.call_deferred(destination,400,GenerationProfileScript.error_body(errors,code))
++	return true
+ const WorldJobs = preload("res://src/core/Jobs.gd")
+ const SmallPromptsScript = preload("res://src/ai/provider/SmallPrompts.gd")
+ const SchemasSvcScript = preload("res://src/ai/provider/AnswerSchemas.gd")
+@@ -372,14 +394,14 @@
+ 
+ 
+ func _apply_timeouts() -> void :
+-	var term: = 0.0 if _without_term() else clampf(wait_sec, 30.0, 900.0)
++	var term: = generation_timeout(0.0 if _without_term() else clampf(wait_sec, 30.0, 900.0))
+ 	for h in [http, http_event, http_talk, http_person, http_assistant]:
+ 		if h != null:
+ 			h.timeout = term
+ 	if http_results != null:
+-		http_results.timeout = term * 2.0
++		http_results.timeout = generation_timeout(term * 2.0)
+ 	if http_argument != null:
+-		http_argument.timeout = 0.0 if _without_term() else 60.0
++		http_argument.timeout = generation_timeout(0.0 if _without_term() else 60.0)
+ 	for k_v in _channels:
+ 		var hk = (_channels[k_v] as Dictionary).get("http")
+ 		if hk != null:
+@@ -528,7 +550,7 @@
+ 			(_channels[channel] as Dictionary)["prompt"] = prompt
+ 		return
+ 	var h: = HTTPRequest.new()
+-	h.timeout = 0.0 if _without_term() else clampf(wait_sec, 30.0, 900.0)
++	h.timeout = generation_timeout(0.0 if _without_term() else clampf(wait_sec, 30.0, 900.0))
+ 	add_child(h)
+ 	_channels[channel] = {"http": h, "prompt": prompt if prompt != "" else ModsScript.text_m("res://data/prompt_" + channel + ".txt"), 
+ 		"busy": false, "queue": [], "label": null}
+--- a/src/ai/provider/RequestBuilder.gd
++++ b/src/ai/provider/RequestBuilder.gd
+@@ -77,6 +77,9 @@
+ 
+ 
+ 
++	limit = provider.generation_output_limit(limit,by_short or provider._channels.has(channel))
++	destination.remove_meta("generation_settings_error")
++	destination.set_meta("generation_profile_active",provider.generation_profile().enabled)
+ 	var h_request: = _mod_request(destination, channel, system, user_, dossier, limit, heat, small_)
+ 	if bool(h_request.get("cancel", false)):
+ 		return false
+@@ -87,7 +90,11 @@
+ 	dossier = str(h_request["dossier"])
+ 	limit = int(h_request["max_tokens"])
+ 	heat = float(h_request["temperature"])
+-	var shrunk: = fit_in(system, user_, dossier, limit)
++	var manual_input: bool = provider.generation_profile().enabled
++	if manual_input:
++		var guard: Dictionary = preload("res://src/ai/tuning/GenerationProfile.gd").input_guard(system,user_,dossier,limit,context_window())
++		if not guard.ok: return provider.generation_failure(destination,guard.errors,"context_length_exceeded")
++	var shrunk: = [system,user_,dossier] if manual_input else fit_in(system, user_, dossier, limit)
+ 	system = str(shrunk[0])
+ 	user_ = str(shrunk[1])
+ 	dossier = str(shrunk[2])
+@@ -103,15 +110,15 @@
+ 
+ 	if ModelStrengthScript.local_one(provider.base_url):
+ 		if _local_busy():
+-			_local_queue.append([destination, system, user_, dossier, heat, limit, channel, by_short])
++			_local_queue.append([destination, system, user_, dossier, heat, limit, channel, by_short, manual_input])
+ 			_local_poll()
+ 			return true
+ 		_local_dest = destination
+ 
+ 
+-	if not provider.guard().gate([destination, system, user_, dossier, heat, limit, channel, by_short], float(h_request.get("defer", 0.0))):
++	if not provider.guard().gate([destination, system, user_, dossier, heat, limit, channel, by_short, manual_input], float(h_request.get("defer", 0.0))):
+ 		return true
+-	return _send_now(destination, system, user_, dossier, heat, limit, channel, by_short)
++	return _send_now(destination, system, user_, dossier, heat, limit, channel, by_short, manual_input)
+ 
+ 
+ var _local_dest: HTTPRequest
+@@ -139,15 +146,21 @@
+ 		if not is_instance_valid(q[0]) or not (q[0] as HTTPRequest).is_inside_tree():
+ 			continue
+ 		_local_dest = q[0]
+-		_send_now(q[0], q[1], q[2], q[3], q[4], q[5], q[6], q[7])
++		_send_now.callv(q)
+ 	_local_polling = false
+ 
+ 
+ func _send_now(destination: HTTPRequest, system: String, user_: String, dossier: String, heat: float, limit: int, 
+-		channel: String, by_short: bool) -> bool:
++		channel: String, by_short: bool, manual_input: bool = false) -> bool:
++	destination.set_meta("generation_profile_active",manual_input or provider.generation_profile().enabled)
+ 	var query: = build_request(system, user_, dossier, heat, limit, channel, by_short)
+-
+-	destination.set_meta("retry_args", [system, user_, dossier, heat, limit, channel, by_short])
++	if query.is_empty(): return provider.generation_failure(destination,provider.generation_error)
++	if manual_input or provider.generation_profile().enabled:
++		var final_guard: Dictionary = preload("res://src/ai/tuning/GenerationProfile.gd").input_guard(system,user_,dossier,preload("res://src/ai/tuning/GenerationProfile.gd").query_budget(query,limit),context_window())
++		if not final_guard.ok: return provider.generation_failure(destination,final_guard.errors,"context_length_exceeded")
++	destination.timeout = provider.generation_request_timeout(destination)
++
++	destination.set_meta("retry_args", [system, user_, dossier, heat, limit, channel, by_short, manual_input])
+ 	destination.set_meta("sent_head", user_.left(300))
+ 	destination.set_meta("sent_at", Time.get_ticks_msec())
+ 	var url: String = query[0]
+@@ -184,7 +197,7 @@
+ 	if bool(h.get("cancel", false)):
+ 		return h
+ 	var out: = {"system": str(h.get("system", system)), "user": str(h.get("user", user_)), "dossier": str(h.get("dossier", dossier)), 
+-		"max_tokens": clampi(int(h.get("max_tokens", limit)), 16, 64000), "temperature": clampf(float(h.get("temperature", heat)), 0.0, 2.0), 
++		"max_tokens": preload("res://src/ai/tuning/GenerationProfile.gd").hook_limit(provider.generation_profile(),int(h.get("max_tokens",limit))), "temperature": clampf(float(h.get("temperature", heat)), 0.0, 2.0), 
+ 		"defer": float(h.get("defer", 0.0))}
+ 	var mod_answer: = str(h.get("answer", ""))
+ 	_after_answer(destination, channel, out["system"], out["user"], out["dossier"], mod_answer != "")
+@@ -299,7 +312,9 @@
+ 
+ 		body = openai_body(system, (dossier + "\n\n" + user_) if dossier != "" else user_, heat, limit)
+ 		_local_response_schema(channel, by_short, is_opencode, body, headers, small_)
+-	return [url, headers, body]
++	var tuned: Dictionary = preload("res://src/ai/tuning/GenerationProfile.gd").apply_query([url,headers,body],provider.generation_profile(),limit)
++	provider.generation_error = tuned.errors
++	return tuned.query if tuned.ok else []
+ 
+ 
+ func _local_response_schema(channel: String, by_short: bool, is_opencode, body: Dictionary, headers: PackedStringArray, small_: bool):
+@@ -336,8 +351,16 @@
+ 		return
+ 	var query: = build_request(str(package.get("с", "")), str(package.get("п", "")), str(package.get("д", "")), 
+ 		float(package.get("ж", 0.7)), int(package.get("pr", 1200)), str(package.get("к", "")), bool(package.get("corr", false)))
++	if query.is_empty():
++		done.call(400,preload("res://src/ai/tuning/GenerationProfile.gd").error_body(provider.generation_error).get_string_from_utf8())
++		return
++	if provider.generation_profile().enabled:
++		var input: Dictionary = preload("res://src/ai/tuning/GenerationProfile.gd").input_guard(str(package.get("с","")),str(package.get("п","")),str(package.get("д","")),preload("res://src/ai/tuning/GenerationProfile.gd").query_budget(query,int(package.get("pr",1200))),context_window())
++		if not input.ok:
++			done.call(400,preload("res://src/ai/tuning/GenerationProfile.gd").error_body(input.errors,"context_length_exceeded").get_string_from_utf8())
++			return
+ 	var destination: = HTTPRequest.new()
+-	destination.timeout = 180.0
++	destination.timeout = provider.generation_timeout(180.0)
+ 	provider.add_child(destination)
+ 	destination.request_completed.connect( func(r_: int, code: int, _z: PackedStringArray, body: PackedByteArray):
+ 		done.call(code, body.get_string_from_utf8())
+@@ -357,6 +380,8 @@
+ 
+ 
+ func context_window() -> int:
++	var manual: Dictionary = provider.generation_profile()
++	if manual.enabled and manual.context_tokens > 0: return int(manual.context_tokens)
+ 	var n = PathsScript.settings().get("providers", {}).get("brain", {})
+ 	if n is Dictionary and int(n.get("window", 0)) > 0:
+ 		return int(n["window"])
+--- a/src/launcher/LauncherCloudAi.gd
++++ b/src/launcher/LauncherCloudAi.gd
+@@ -71,6 +71,7 @@
+ 	var key = got_model_key_and_catalog[0]
+ 	var catalog: LineEdit = got_model_key_and_catalog[1]
+ 
++	preload("res://src/ai/tuning/NativeAiTuning.gd").attach_launcher(launcher,sheet,base_,model,choice,list_,catalog,key)
+ 	if _check_row(sheet, catalog, key, model, base_, choice, list_, v):
+ 		return
+ 
+--- a/src/ui/menu/SettingsScreen.gd
++++ b/src/ui/menu/SettingsScreen.gd
+@@ -462,6 +462,7 @@
+ 		status.text = "⚪  " + menu.t_("ai_settings_off")
+ 	now.add_child(status)
+ 	now.add_child(menu._text(menu.t_("ai_explanation"), 13, DIM))
++	preload("res://src/ai/tuning/NativeAiTuning.gd").attach_menu(menu,block(v,"Параметры генерации"))
+ 
+ 
+ 	var right = block(v, "🖥  " + menu.t_("ai_settings_path_computer"), menu.t_("ai_settings_path_computer_explanation"))
+--- a/src/ai/provider/RequestGuard.gd
++++ b/src/ai/provider/RequestGuard.gd
+@@ -67,7 +67,7 @@
+ 			continue
+ 		_sent.append(now)
+ 		_mark(q[0])
+-		provider.requests()._send_now(q[0], q[1], q[2], q[3], q[4], q[5], q[6], q[7])
++		provider.requests()._send_now.callv(q)
+ 	_polling = false
+ 
+ 
+@@ -87,7 +87,7 @@
+ 		return
+ 	(args[0] as HTTPRequest).remove_meta("queued")
+ 	if allow(args):
+-		provider.requests()._send_now(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7])
++		provider.requests()._send_now.callv(args)
+ 
+ 
+ 
+@@ -126,7 +126,7 @@
+ 	if not is_instance_valid(destination):
+ 		return
+ 	destination.remove_meta("retrying")
+-	if not provider.requests()._send_now(destination, a[0], a[1], a[2], a[3], a[4], a[5], a[6]):
++	if not provider.requests()._send_now.callv([destination]+a):
+ 		destination.request_completed.emit(HTTPRequest.RESULT_CANT_CONNECT, 0, PackedStringArray(), PackedByteArray())
+ 
+ 
