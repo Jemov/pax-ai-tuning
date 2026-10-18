@@ -1,5 +1,6 @@
 extends Node
 ## Shared native owner for the launcher cloud form and the in-game AI settings tab.
+const L = preload("res://src/ai/tuning/Localization.gd")
 const Store = preload("res://src/ai/tuning/GenerationProfile.gd")
 const AdvancedPanelScript = preload("res://src/ai/tuning/AdvancedPanel.gd")
 const Metadata = preload("res://src/ai/tuning/ModelMetadata.gd")
@@ -14,6 +15,7 @@ var _query: Callable
 var _panel: PanelContainer
 var _metadata: Node
 var _metadata_errors: Dictionary = {}
+var _localization: Node
 var _elapsed := 0.0
 
 static func attach_launcher(host: Node, parent: VBoxContainer, address: LineEdit, model: LineEdit, choice: OptionButton, services: Array, catalog: LineEdit, key: LineEdit) -> PanelContainer:
@@ -43,7 +45,7 @@ static func watch_menu(host: Node, parent: VBoxContainer) -> void:
 		watcher = new(); watcher.name = "NativeAiTuningEntry"; watcher._host = host; host.add_child(watcher)
 	for node: Node in parent.find_children("*","Button",true,false):
 		if not node is Button or node.has_meta("native_ai_tuning_entry"): continue
-		var brain := node.text.strip_edges() in ["Тонкая настройка","Fine tuning","Advanced settings"]
+		var brain: bool = node.text.strip_edges() in ["Тонкая настройка","Fine tuning","Advanced settings"]
 		for connection: Dictionary in node.get_signal_connection_list("pressed"):
 			var callback: Callable = connection.get("callable",Callable())
 			if callback.is_valid() and callback.get_bound_arguments().has("brain"): brain = true
@@ -74,12 +76,17 @@ static func attach_menu(host: Node, parent: VBoxContainer) -> PanelContainer:
 	return _attach(host,parent,selected,query,true)
 
 static func _attach(host: Node, parent: VBoxContainer, selection: Callable, query: Callable, is_menu: bool) -> PanelContainer:
+	L.host_ref = weakref(host)
+	L.configure(JSON.parse_string(FileAccess.get_file_as_string("res://src/ai/tuning/locales/ru.json")),JSON.parse_string(FileAccess.get_file_as_string("res://src/ai/tuning/locales/en.json")))
 	var owner := new()
 	owner._host = host; owner._menu = is_menu; owner._selection = selection; owner._query = query
 	parent.add_child(owner)
 	owner._metadata = Metadata.new(); owner.add_child(owner._metadata)
 	owner._metadata.changed.connect(func(): owner.profiles_changed.emit())
 	owner._panel = AdvancedPanelScript.new(); owner._panel.setup(owner,host); parent.add_child(owner._panel)
+	owner._localization = L.new(); owner.add_child(owner._localization)
+	owner._localization.setup(owner._localization_roots)
+	owner._localization.language_changed.connect(owner.profiles_changed.emit)
 	owner._panel.capabilities_requested.connect(owner.request_capabilities)
 	owner._refresh_target()
 	return owner._panel
@@ -88,7 +95,7 @@ func profile_for(base: String, model: String) -> Dictionary: return Store.curren
 func save_profile(base: String, model: String, profile: Dictionary) -> Dictionary: return _save(base,model,profile,false)
 func reset_profile(base: String, model: String) -> Dictionary: return _save(base,model,{},true)
 func _save(base: String, model: String, profile: Dictionary, reset: bool) -> Dictionary:
-	if not is_instance_valid(_host): return {"ok":false,"errors":["Native settings screen is closed."]}
+	if not is_instance_valid(_host): return {"ok":false,"errors":[L.text("Экран настроек закрыт.")]}
 	var settings: Dictionary
 	if _menu:
 		settings = _host.settings
@@ -128,3 +135,6 @@ func _process(delta: float) -> void:
 	if _elapsed >= 0.25: _elapsed = 0.0; _refresh_target()
 func _exit_tree() -> void:
 	if is_instance_valid(_metadata): _metadata.cancel_all()
+
+func _localization_roots() -> Array:
+	return [_panel]

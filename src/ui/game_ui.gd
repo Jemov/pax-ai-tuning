@@ -1,4 +1,5 @@
 extends Node
+const L = preload("res://mods/ai_tuning/src/localization/localization.gd")
 ## Extends the existing native brain-provider form; never adds a second AI entry.
 const AdvancedPanelScript = preload("res://mods/ai_tuning/src/ui/advanced_panel.gd")
 var owner_mod: Node
@@ -74,7 +75,7 @@ func _native_fine_button(button: Button) -> bool:
 	for connection: Dictionary in button.get_signal_connection_list("pressed"):
 		var callback: Callable = connection.get("callable",Callable())
 		if callback.is_valid() and callback.get_bound_arguments().has("brain"): return true
-	return button.text.strip_edges() in ["Тонкая настройка","Fine tuning","Advanced settings"]
+	return button.text.strip_edges() in [L.text("Тонкая настройка"),"Fine tuning","Advanced settings"]
 
 func _watch_native_entry(body: VBoxContainer) -> void:
 	for node: Node in body.find_children("*","Button",true,false):
@@ -143,7 +144,7 @@ func _update_target() -> void:
 	if not is_instance_valid(panel) or not is_instance_valid(owner_mod): return
 	var selected: Variant = owner_mod.current_selection()
 	if not selected is Dictionary: return
-	panel.set_target(str(selected.get("base","")),str(selected.get("model","")),"Подключённая модель")
+	panel.set_target(str(selected.get("base","")),str(selected.get("model","")),L.text("Подключённая модель"))
 	panel.refresh()
 
 func _request_capabilities(base: String, model: String) -> void:

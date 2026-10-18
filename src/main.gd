@@ -1,4 +1,5 @@
 extends PaxMod
+const L = preload("res://mods/ai_tuning/src/localization/localization.gd")
 ## Native settings stay opaque. Only public identities and generation preferences persist.
 const Policy = preload("res://mods/ai_tuning/src/domain/profile_policy.gd")
 const Identity = preload("res://mods/ai_tuning/src/domain/identity.gd")
@@ -44,7 +45,12 @@ func _harness() -> Node:
 	var value: Variant = api.call("get_mod","pax_harness")
 	return value if value is Node and is_instance_valid(value) else null
 
+var _localization: Node
+
 func _mod_loaded() -> void:
+	L.configure(load_json("data/lang/ru.json",{}),load_json("data/lang/en.json",{}))
+	_localization = L.new(); add_child(_localization); _localization.setup(_localization_roots)
+	_localization.language_changed.connect(_language_changed)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_metadata = Metadata.new(); add_child(_metadata)
 	_metadata.changed.connect(func(): profiles_changed.emit())
@@ -55,7 +61,7 @@ func _mod_loaded() -> void:
 	hook("ai_request",_before_request,100)
 	hook("ai_request",_capture_request,-100)
 	var api: Node = _api()
-	if api != null and api.has_method("register_command"): api.call("register_command","ai_tuning",_command,"ai_tuning open — тонкая настройка выбранной модели")
+	if api != null and api.has_method("register_command"): api.call("register_command","ai_tuning",_command,L.text("ai_tuning open — тонкая настройка выбранной модели"))
 	sync_context(); _attach_transport()
 
 func _world_ready(_game: PaxGame) -> void:
@@ -394,6 +400,8 @@ func _command(args: PackedStringArray) -> String:
 	return JSON.stringify({"selection":current_selection(),"active":is_instance_valid(_transport_provider)})
 
 func _mod_unloaded() -> void:
+	if is_instance_valid(_localization): _localization.queue_free()
+	_localization = null
 	_detach_transport(); _release_context()
 	for item: Dictionary in _timeouts:
 		var destination: Variant = item.node.get_ref()
@@ -404,3 +412,9 @@ func _mod_unloaded() -> void:
 	if is_instance_valid(_game_ui): _game_ui.dispose(); _game_ui.queue_free()
 	_game_ui = null
 	_ui = null; _metadata = null
+
+func _localization_roots() -> Array:
+	return [_ui.panel if is_instance_valid(_ui) else null,_game_ui.panel if is_instance_valid(_game_ui) else null]
+
+func _language_changed() -> void:
+	profiles_changed.emit()

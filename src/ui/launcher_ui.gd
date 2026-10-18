@@ -1,4 +1,5 @@
 extends Node
+const L = preload("res://mods/ai_tuning/src/localization/localization.gd")
 ## Live node adapter; all native script references come from the active form.
 ## Never preloads/replaces native scenes and never persists form credentials.
 const AdvancedPanelScript = preload("res://mods/ai_tuning/src/ui/advanced_panel.gd")
@@ -105,7 +106,7 @@ func _target(scene: Node, form: Dictionary) -> Dictionary:
 				var ai: Script = _native_ai(scene)
 				var native: Variant = ai.get_script_constant_map().get("RussianProvidersScript") if ai != null else null
 				if native is Script and native.has_method("yandex_model"): model = str(native.call("yandex_model",model,form.catalog.text))
-			if base != "" and model != "": return {"base":base,"model":model,"label":"Выбранная модель"}
+			if base != "" and model != "": return {"base":base,"model":model,"label":L.text("Выбранная модель")}
 	# Read only these two connected identity fields; never copy or inspect keys.
 	if _property(scene,"settings_m"):
 		var settings: Variant = scene.get("settings_m")
@@ -113,8 +114,8 @@ func _target(scene: Node, form: Dictionary) -> Dictionary:
 			var providers: Variant = settings.get("providers")
 			var brain: Variant = providers.get("brain") if providers is Dictionary else null
 			if brain is Dictionary and brain.get("base") is String and brain.get("model") is String:
-				return {"base":brain.base,"model":brain.model,"label":"Подключённая модель"}
-	return {"base":"","model":"","label":"Выбранная модель"}
+				return {"base":brain.base,"model":brain.model,"label":L.text("Подключённая модель")}
+	return {"base":"","model":"","label":L.text("Выбранная модель")}
 
 func refresh() -> void:
 	var scene: Node = _scene()
@@ -152,7 +153,7 @@ func _request_capabilities(base: String, model: String) -> void:
 	if is_instance_valid(_launcher) and not _form.is_empty():
 		var current: Dictionary = _target(_launcher,_form)
 		var ai: Script = _native_ai(_launcher)
-		if current.label == "Выбранная модель" and current.base == base and current.model == model and ai != null and ai.has_method("check_request"):
+		if current.label == L.text("Выбранная модель") and current.base == base and current.model == model and ai != null and ai.has_method("check_request"):
 			var key := ""
 			if is_instance_valid(_form.get("key")): key = _form.key.text.strip_edges()
 			var index: int = _form.service.selected

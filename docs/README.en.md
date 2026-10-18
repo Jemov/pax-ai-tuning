@@ -1,0 +1,41 @@
+# Advanced AI settings
+
+Per-endpoint and per-model generation profiles for **Pax Universe 0.31.4**.
+
+[Русское описание](../README.md)
+
+## Installation
+
+Install **Advanced AI settings** from the launcher's official Workshop and enable it under Mods. Alternatively, close the game and place `ai_tuning-2.3.0.zip` from GitHub Releases in the game's user mods folder without extracting it. Find that folder through Launcher → Mods → Mods folder; on Windows it is normally `%APPDATA%\Pax Universe\mods`.
+
+Enable the mod and approve code execution through the normal game prompt if requested. Keep only one installed copy. Replace an older manual installation while the game is closed; Workshop copies update through the launcher.
+
+In the stock game, the mod is available **after loading a campaign**, inside the existing **Settings → AI → Additional → Advanced settings** form. The repository also contains [source integration for a game fork](../integrations/game-fork/). Its launcher part must be integrated into a fork; installing the ordinary mod does not enable code in the stock cold launcher.
+
+## Profiles
+
+Choose the endpoint and model through the game's normal connection form. Open Advanced settings, enable **Use profile**, set the desired values and Apply. Reset removes the selected model's profile. Profiles are stored separately from campaigns; connection credentials remain in the game and are not copied into profiles.
+
+| Field | Meaning |
+| --- | --- |
+| Context window | Total request and response capacity, in tokens. |
+| Maximum output | Maximum generated tokens for one request. |
+| Response timeout | Seconds to wait for the response, including long reasoning. |
+| Reasoning effort | Exact value supported by the API, such as none, low or high. Available values depend on the model. |
+| Verbosity | Response verbosity when the API supports it. |
+| Temperature | Sampling variation; lower values are more predictable. |
+| Top-p | Probability mass used for token sampling. |
+| Image input | Permit Harness screenshots for a model and API that actually accept images. |
+| Additional JSON | Extra generation parameters, for example `{"seed":42}` when supported. |
+
+Zero, a blank value or Automatic leaves the corresponding setting to the game. Refresh capabilities requests model metadata; providers may report only part of it. You can supply exact manual values when needed. Auto is normally appropriate for API field mapping.
+
+Do not put endpoint URLs, authorization, model identities, messages, tools or streaming controls in additional generation JSON. They belong to the game's connection and request pipeline. Unsupported explicit parameters return an error rather than being silently deleted. Actual model/API limits still apply.
+
+Image input requires both Use profile and Image input for the selected endpoint/model. Enabling it does not give a text-only model vision. The mod works on its own and with Pax Harness 1.10.0 or later.
+
+## Languages and source
+
+Full Russian and English interfaces follow the game's selected language, including open profile windows. Switching language preserves drafts and profile values. API parameter identifiers remain unchanged.
+
+Entry: `src/main.gd`; profile policy and identity handling are under `src/domain/`, UI adapters under `src/ui/`, and translations under `data/lang/`. The fork integration is separate from the installable ZIP.

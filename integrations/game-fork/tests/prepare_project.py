@@ -25,6 +25,8 @@ for entry in (source / "src/ai/tuning").glob("*.gd"):
     target = project / "src/ai/tuning" / entry.name
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(entry, target)
+locales = source / "src/ai/tuning/locales"
+if locales.is_dir(): shutil.copytree(locales,project / "src/ai/tuning/locales",dirs_exist_ok=True)
 tests = Path(__file__).resolve().parent
 for entry in tests.glob("*.gd"):
     target = project / (entry.name if entry.name.endswith("_tests.gd") else "tests/"+entry.name)
