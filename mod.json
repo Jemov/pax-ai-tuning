@@ -5,10 +5,10 @@
     "en": "AI fine tuning"
   },
   "description": {
-    "ru": "Профили контекста и генерации для адреса API и модели: длина ответа, рассуждения, подробность, sampling, JSON и разрешение изображений на вход. В партии: Настройки → Нейросеть → Тонкая настройка.",
-    "en": "Context and generation profiles per API endpoint and model: output length, reasoning, verbosity, sampling, extra JSON and image-input permission. In-game: Settings → AI → Fine tuning."
+    "ru": "Как открыть: загрузите или начните партию → меню игры → Настройки → Нейросеть. В блоке «Дополнительно» нажмите «Тонкая настройка». Включите «Использовать профиль», задайте параметры и нажмите «Применить». Контекст, лимит ответа, рассуждения, температура, top_p, JSON и изображения на вход — отдельно для каждого API и модели.",
+    "en": "How to open: load or start a campaign → game menu → Settings → AI. Under Additional, click Advanced settings. Enable Use profile, adjust the parameters and click Apply. Context, output limit, reasoning, temperature, top_p, extra JSON and image input are configured per API endpoint and model."
   },
-  "version": "2.3.1",
+  "version": "2.3.2",
   "api": 1,
   "game_version": ">=0.31.2",
   "entry": "src/main.gd",

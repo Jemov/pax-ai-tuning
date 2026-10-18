@@ -4,9 +4,16 @@ Per-endpoint and per-model generation profiles for **Pax Universe 0.31.5**.
 
 [Русское описание](../README.md)
 
+## How to open the settings
+
+1. **Load or start a campaign.**
+2. Open **Game menu → Settings → AI**.
+3. Under **Additional**, click **Advanced settings**.
+4. Enable **Use profile**, adjust the parameters and click **Apply**.
+
 ## Installation
 
-Install **Advanced AI settings** from the launcher's official Workshop and enable it under Mods. Alternatively, close the game and place `ai_tuning-2.3.1.zip` from GitHub Releases in the game's user mods folder without extracting it. Find that folder through Launcher → Mods → Mods folder; on Windows it is normally `%APPDATA%\Pax Universe\mods`.
+Install **Advanced AI settings** from the launcher's official Workshop and enable it under Mods. Alternatively, close the game and place `ai_tuning-2.3.2.zip` from GitHub Releases in the game's user mods folder without extracting it. Find that folder through Launcher → Mods → Mods folder; on Windows it is normally `%APPDATA%\Pax Universe\mods`.
 
 Enable the mod and approve code execution through the normal game prompt if requested. Keep only one installed copy. Replace an older manual installation while the game is closed; Workshop copies update through the launcher.
 
