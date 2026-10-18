@@ -8,7 +8,7 @@
     "ru": "Профили контекста и генерации для адреса API и модели: длина ответа, рассуждения, подробность, sampling, JSON и разрешение изображений на вход. В партии: Настройки → Нейросеть → Тонкая настройка.",
     "en": "Context and generation profiles per API endpoint and model: output length, reasoning, verbosity, sampling, extra JSON and image-input permission. In-game: Settings → AI → Fine tuning."
   },
-  "version": "2.1.1",
+  "version": "2.1.2",
   "api": 1,
   "game_version": ">=0.31.2",
   "entry": "src/main.gd",
