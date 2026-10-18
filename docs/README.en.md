@@ -1,12 +1,12 @@
 # Advanced AI settings
 
-Per-endpoint and per-model generation profiles for **Pax Universe 0.31.4**.
+Per-endpoint and per-model generation profiles for **Pax Universe 0.31.5**.
 
 [Русское описание](../README.md)
 
 ## Installation
 
-Install **Advanced AI settings** from the launcher's official Workshop and enable it under Mods. Alternatively, close the game and place `ai_tuning-2.3.0.zip` from GitHub Releases in the game's user mods folder without extracting it. Find that folder through Launcher → Mods → Mods folder; on Windows it is normally `%APPDATA%\Pax Universe\mods`.
+Install **Advanced AI settings** from the launcher's official Workshop and enable it under Mods. Alternatively, close the game and place `ai_tuning-2.3.1.zip` from GitHub Releases in the game's user mods folder without extracting it. Find that folder through Launcher → Mods → Mods folder; on Windows it is normally `%APPDATA%\Pax Universe\mods`.
 
 Enable the mod and approve code execution through the normal game prompt if requested. Keep only one installed copy. Replace an older manual installation while the game is closed; Workshop copies update through the launcher.
 
@@ -39,3 +39,5 @@ Image input requires both Use profile and Image input for the selected endpoint/
 Full Russian and English interfaces follow the game's selected language, including open profile windows. Switching language preserves drafts and profile values. API parameter identifiers remain unchanged.
 
 Entry: `src/main.gd`; profile policy and identity handling are under `src/domain/`, UI adapters under `src/ui/`, and translations under `data/lang/`. The fork integration is separate from the installable ZIP.
+
+The interface follows the game language: Russian for RU, English for EN and all other game languages.

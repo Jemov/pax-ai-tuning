@@ -15,7 +15,7 @@ var _errors: Label
 var _apply: Button
 var _toggle: Button
 var _loading := false
-var _source_label := L.text("Выбранная модель")
+var _source_label := "Выбранная модель"
 var _native_host: Node
 
 func embed_in_native_form() -> void:
@@ -127,12 +127,12 @@ func _choice(key: String, title: String, values: Array) -> void:
 func _key() -> String: return JSON.stringify([target_base,target_model])
 
 func set_target(base: String, model: String, source_label: String = "Выбранная модель") -> void:
-	_source_label = source_label
+	_source_label = L.canonical(source_label)
 	if target_base == base and target_model == model and not fields.is_empty() and fields.context_tokens.text != "":
-		_target.text = source_label+": "+model+"\n"+base
+		L.bind(_target,"text",[_source_label,{"value":": "+model+"\n"+base}])
 		return
 	target_base = base; target_model = model
-	_target.text = source_label+": "+model+"\n"+base if base != "" and model != "" else L.text("Выберите модель в форме подключения.")
+	L.bind(_target,"text",[_source_label,{"value":": "+model+"\n"+base}] if base != "" and model != "" else ["Выберите модель в форме подключения."])
 	var profile: Dictionary = owner_mod.profile_for(base,model) if base != "" and model != "" else {}
 	_load_profile(profile)
 	if drafts.has(_key()): _load_draft(drafts[_key()])

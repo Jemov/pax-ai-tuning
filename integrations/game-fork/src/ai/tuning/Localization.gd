@@ -11,6 +11,7 @@ static var host_ref: WeakRef
 var roots: Callable
 var _elapsed := 0.0
 var _language := ""
+var _language_source: WeakRef
 signal language_changed
 static func configure(ru: Dictionary, en: Dictionary) -> void:
 	_ru = ru; _en = en; _keys.clear(); _reverse.clear()
@@ -32,29 +33,68 @@ static func configure(ru: Dictionary, en: Dictionary) -> void:
 	_pattern = RegEx.new()
 	if not alternatives.is_empty(): _pattern.compile("|".join(alternatives))
 static func language() -> String:
-	if forced_language != "": return forced_language
+	if forced_language != "": return normalize_language(forced_language)
 	if host_ref != null:
 		var host: Object = host_ref.get_ref()
 		if is_instance_valid(host):
 			for property: String in ["settings","settings_m"]:
-				if property in host and host.get(property) is Dictionary: return "ru" if str(host.get(property).get("lang","ru")).begins_with("ru") else "en"
+				if property in host and host.get(property) is Dictionary: return normalize_language(str(host.get(property).get("lang","en")))
 	var tree: MainLoop = Engine.get_main_loop()
 	if tree is SceneTree:
 		var api: Node = tree.root.get_node_or_null("Pax")
 		if api != null:
 			var game: Variant = api.get("game")
 			if game is Object and game.has_method("language"):
-				return "ru" if str(game.call("language")).begins_with("ru") else "en"
-	return "ru" if str(preload("res://src/save/Paths.gd").settings().get("lang","ru")).begins_with("ru") else "en"
+				return normalize_language(str(game.call("language")))
+			if api.has_method("tr_key"):
+				var code: String = str(api.call("tr_key","ai_tuning_language"))
+				if code in ["ru","en"]: return normalize_language(code)
+	return normalize_language(str(preload("res://src/save/Paths.gd").settings().get("lang","en")))
+static func normalize_language(code: String) -> String:
+	return "ru" if code.to_lower().begins_with("ru") else "en"
 static func text(source: String) -> String:
-	if language() == "ru": return source
-	if _keys.has(source): return str(_en.get(_keys[source],source))
+	if language() == "ru": return _native_text(str(_keys[source]),source) if _keys.has(source) else source
+	if _keys.has(source): return _native_text(str(_keys[source]),str(_en.get(_keys[source],source)))
 	if _pattern == null or not _pattern.is_valid(): return source
 	var result := ""; var offset := 0
 	for match_: RegExMatch in _pattern.search_all(source):
-		result += source.substr(offset,match_.get_start()-offset)+str(_en.get(_keys[match_.get_string()],match_.get_string()))
+		result += source.substr(offset,match_.get_start()-offset)+text(match_.get_string())
 		offset = match_.get_end()
 	return result+source.substr(offset)
+static func _native_text(_key: String, fallback: String) -> String:
+	# Fork locales are bundled here, rather than registered as an installed mod.
+	return fallback
+func _listen_to_game_language() -> void:
+	var source: Object
+	var tree: MainLoop = Engine.get_main_loop()
+	if tree is SceneTree:
+		var api: Node = tree.root.get_node_or_null("Pax")
+		var game: Variant = api.get("game") if api != null else null
+		if game is Object and game.has_method("scene_root"):
+			var main: Variant = game.call("scene_root")
+			if main is Node and "ui" in main and main.ui is Object and "menu_node" in main.ui:
+				source = main.ui.menu_node
+	if source == null or not source.has_signal("language_changed"): return
+	if _language_source != null and _language_source.get_ref() == source: return
+	_language_source = weakref(source)
+	if not source.is_connected("language_changed",_game_language_changed):
+		source.connect("language_changed",_game_language_changed,CONNECT_DEFERRED)
+func _game_language_changed(_code: String) -> void:
+	_language = language(); refresh(true)
+	language_changed.emit()
+static func canonical(source: String) -> String:
+	return str(_reverse.get(source,source))
+static func bind(node: Node, property: String, parts: Array) -> void:
+	# Canonical UI fragments and opaque values stay separate in both directions.
+	node.set_meta("mod_i18n_binding_"+MOD_ID+"_"+property,parts.duplicate(true))
+	node.set(property,render_parts(parts))
+static func render_parts(parts: Array) -> String:
+	var result := ""
+	for part: Variant in parts:
+		if part is Dictionary and part.has("value"): result += str(part.value)
+		elif part is Dictionary and part.has("format"): result += text(str(part.format)) % part.get("args",[])
+		else: result += text(str(part))
+	return result
 func setup(provider: Callable) -> void:
 	roots = provider; process_mode = Node.PROCESS_MODE_ALWAYS
 	_language = language(); refresh.call_deferred()
@@ -62,6 +102,7 @@ func _process(delta: float) -> void:
 	_elapsed += delta
 	if _elapsed < 0.3: return
 	_elapsed = 0.0
+	_listen_to_game_language()
 	var changed: bool = _language != language()
 	_language = language()
 	refresh(changed)
@@ -74,16 +115,17 @@ func refresh(redraw: bool = false) -> void:
 		if MOD_ID != "adam_eve": root.set_meta("mod_i18n_scope",MOD_ID)
 		while not controls.is_empty():
 			var node: Node = controls.pop_back()
+			if node is Node3D or node is SubViewport: continue
 			if node.is_queued_for_deletion() or node.get_meta("mod_i18n_scope",MOD_ID) != MOD_ID: continue
 			controls.append_array(node.get_children())
 			if not node is Control and not node is Window: continue
-			if not node.get_meta("mod_user_text",false):
+			if not node.get_meta("mod_user_text",false) or node.has_meta("mod_i18n_binding_"+MOD_ID+"_text"):
 				if node is Label or node is Button or node is RichTextLabel: _property(node,"text")
-			if not node.get_meta("mod_user_tooltip",false): _property(node,"tooltip_text")
+			if not node.get_meta("mod_user_tooltip",false) or node.has_meta("mod_i18n_binding_"+MOD_ID+"_tooltip_text"): _property(node,"tooltip_text")
 			if node is Window: _property(node,"title")
-			if node is AcceptDialog: _property(node,"dialog_text")
+			if node is AcceptDialog and not node.get_meta("mod_user_text",false): _property(node,"dialog_text")
 			if node is LineEdit or node is TextEdit: _property(node,"placeholder_text")
-			if node is OptionButton:
+			if node is OptionButton or node is PopupMenu:
 				for index: int in node.item_count:
 					var current: String = node.get_item_text(index)
 					var key: String = "item_"+str(index)
@@ -91,6 +133,9 @@ func refresh(redraw: bool = false) -> void:
 			if redraw and node is Control: node.queue_redraw()
 func _property(node: Node, property: String) -> void:
 	if not property in node: return
+	var binding: Variant = node.get_meta("mod_i18n_binding_"+MOD_ID+"_"+property) if node.has_meta("mod_i18n_binding_"+MOD_ID+"_"+property) else null
+	if binding is Array:
+		node.set(property,render_parts(binding)); return
 	var value: Variant = node.get(property)
 	if value is String: node.set(property,_translated(node,property,value))
 func _translated(node: Node, property: String, current: String) -> String:
