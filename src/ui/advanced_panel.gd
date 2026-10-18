@@ -17,6 +17,12 @@ var _loading := false
 var _source_label := "Выбранная модель"
 var _native_host: Node
 
+func embed_in_native_form() -> void:
+	# The existing native button is the only entry point; this is its form body.
+	_toggle.hide()
+	_set_open(true)
+	add_theme_stylebox_override("panel",StyleBoxEmpty.new())
+
 func setup(owner: Node, native_host: Node = null, native_card: PanelContainer = null) -> void:
 	owner_mod = owner; _native_host = native_host
 	name = "AiTuningAdvancedPanel"

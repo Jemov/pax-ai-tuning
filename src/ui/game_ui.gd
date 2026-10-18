@@ -1,5 +1,5 @@
 extends Node
-## Demonstration adapter for the native Settings → AI page. No menu items or modal.
+## Extends the existing native brain-provider form; never adds a second AI entry.
 const AdvancedPanelScript = preload("res://mods/ai_tuning/src/ui/advanced_panel.gd")
 var owner_mod: Node
 var api: Node
@@ -68,24 +68,53 @@ func _settings_body(menu: Node) -> VBoxContainer:
 					found = body
 	return found if tab_strip else null
 
+var _provider_anchor: WeakRef
+
+func _native_fine_button(button: Button) -> bool:
+	for connection: Dictionary in button.get_signal_connection_list("pressed"):
+		var callback: Callable = connection.get("callable",Callable())
+		if callback.is_valid() and callback.get_bound_arguments().has("brain"): return true
+	return button.text.strip_edges() in ["Тонкая настройка","Fine tuning","Advanced settings"]
+
+func _watch_native_entry(body: VBoxContainer) -> void:
+	for node: Node in body.find_children("*","Button",true,false):
+		if not node is Button or not _native_fine_button(node) or node.has_meta("ai_tuning_entry"): continue
+		node.set_meta("ai_tuning_entry",true)
+		node.pressed.connect(_entered_native_form,CONNECT_DEFERRED)
+
+func _entered_native_form() -> void:
+	var menu: Node = _menu()
+	if menu == null or _read(menu,"visible") != true: return
+	# The native action has already built the provider page. Keep its controls.
+	var screen: Variant = _read(menu,"screen")
+	if not screen is VBoxContainer or screen.is_queued_for_deletion(): return
+	_remove_panel()
+	var body: VBoxContainer
+	for child: Node in screen.get_children():
+		if not child is ScrollContainer or child.is_queued_for_deletion(): continue
+		for candidate: Node in child.get_children():
+			if candidate is VBoxContainer and not candidate.is_queued_for_deletion(): body = candidate
+	if body == null or _settings_body(menu) != null: return
+	_provider_anchor = weakref(body)
+	panel = AdvancedPanelScript.new(); panel.drafts = drafts
+	panel.setup(owner_mod,menu)
+	panel.embed_in_native_form()
+	panel.capabilities_requested.connect(_request_capabilities)
+	body.add_child(panel)
+	scroll = body.get_parent() as ScrollContainer
+	_update_target()
+	_request_capabilities(panel.target_base,panel.target_model)
+
 func refresh() -> void:
 	var menu: Node = _menu()
 	var body: VBoxContainer = _settings_body(menu)
-	if body == null: _remove_panel(); return
-	if is_instance_valid(panel) and (panel.is_queued_for_deletion() or panel.get_parent() != body): _remove_panel()
-	if not is_instance_valid(panel):
-		var native_card: PanelContainer
-		for child: Node in body.get_children():
-			if child.is_queued_for_deletion(): continue
-			if child is PanelContainer: native_card = child; break
-			for candidate: Node in child.find_children("*","PanelContainer",true,false):
-				if not candidate.is_queued_for_deletion(): native_card = candidate; break
-			if native_card != null: break
-		panel = AdvancedPanelScript.new(); panel.drafts = drafts
-		panel.setup(owner_mod,menu,native_card)
-		panel.capabilities_requested.connect(_request_capabilities)
-		body.add_child(panel)
-		scroll = body.get_parent() as ScrollContainer
+	if body != null:
+		_remove_panel()
+		_watch_native_entry(body)
+		return
+	var anchor: Variant = _provider_anchor.get_ref() if _provider_anchor != null else null
+	if menu == null or _read(menu,"visible") != true or not is_instance_valid(anchor) or anchor.is_queued_for_deletion() or not is_instance_valid(panel) or panel.is_queued_for_deletion() or panel.get_parent() != anchor:
+		_remove_panel(); return
 	_update_target()
 
 # Compatibility with older QA callers; never adds a pause-menu button.
@@ -98,18 +127,17 @@ func _process(delta: float) -> void:
 
 func open() -> bool:
 	var menu: Node = _menu()
-	if menu == null or not is_instance_valid(owner_mod) or not menu.has_method("_settings_screen"): return false
+	if menu == null or not is_instance_valid(owner_mod) or not menu.has_method("_provider_screen"): return false
 	if menu.has_method("to_open"): menu.call("to_open")
 	else: menu.set("visible",true)
-	if _settings_body(menu) == null: menu.call("_settings_screen","нейросеть")
-	refresh()
+	menu.call("_provider_screen","brain")
+	_entered_native_form()
 	if not is_instance_valid(panel): return false
-	panel.open()
 	_reveal.call_deferred()
 	return true
 
 func _reveal() -> void:
-	if is_instance_valid(panel) and not panel.is_queued_for_deletion() and is_instance_valid(scroll): scroll.ensure_control_visible(panel._toggle)
+	if is_instance_valid(panel) and not panel.is_queued_for_deletion() and is_instance_valid(scroll): scroll.ensure_control_visible(panel._body)
 
 func _update_target() -> void:
 	if not is_instance_valid(panel) or not is_instance_valid(owner_mod): return
@@ -131,7 +159,7 @@ func _remove_panel() -> void:
 	if is_instance_valid(panel):
 		if panel.get_parent() != null: panel.get_parent().remove_child(panel)
 		panel.queue_free()
-	panel = null; scroll = null
+	panel = null; scroll = null; _provider_anchor = null
 
 func dispose() -> void:
 	set_process(false); _remove_panel(); _game_ref = null

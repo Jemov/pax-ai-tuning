@@ -187,7 +187,7 @@
  		status.text = "⚪  " + menu.t_("ai_settings_off")
  	now.add_child(status)
  	now.add_child(menu._text(menu.t_("ai_explanation"), 13, DIM))
-+	preload("res://src/ai/tuning/NativeAiTuning.gd").attach_menu(menu,block(v,"Параметры генерации"))
++	preload("res://src/ai/tuning/NativeAiTuning.gd").call_deferred("watch_menu",menu,v)
  
  
  	var right = block(v, "🖥  " + menu.t_("ai_settings_path_computer"), menu.t_("ai_settings_path_computer_explanation"))

@@ -37,6 +37,30 @@ static func attach_launcher(host: Node, parent: VBoxContainer, address: LineEdit
 	parent.add_child(card)
 	return _attach(host,card.get_child(0) as VBoxContainer,selected,query,false)
 
+static func watch_menu(host: Node, parent: VBoxContainer) -> void:
+	var watcher: Node = host.get_node_or_null("NativeAiTuningEntry")
+	if watcher == null:
+		watcher = new(); watcher.name = "NativeAiTuningEntry"; watcher._host = host; host.add_child(watcher)
+	for node: Node in parent.find_children("*","Button",true,false):
+		if not node is Button or node.has_meta("native_ai_tuning_entry"): continue
+		var brain := node.text.strip_edges() in ["Тонкая настройка","Fine tuning","Advanced settings"]
+		for connection: Dictionary in node.get_signal_connection_list("pressed"):
+			var callback: Callable = connection.get("callable",Callable())
+			if callback.is_valid() and callback.get_bound_arguments().has("brain"): brain = true
+		if brain:
+			node.set_meta("native_ai_tuning_entry",true)
+			node.pressed.connect(watcher._entered_menu,CONNECT_DEFERRED)
+
+func _entered_menu() -> void:
+	if not is_instance_valid(_host): return
+	for child: Node in _host.screen.get_children():
+		if not child is ScrollContainer or child.is_queued_for_deletion(): continue
+		for body: Node in child.get_children():
+			if body is VBoxContainer and not body.is_queued_for_deletion():
+				var panel: PanelContainer = attach_menu(_host,body)
+				panel.embed_in_native_form()
+				return
+
 static func attach_menu(host: Node, parent: VBoxContainer) -> PanelContainer:
 	var selected: Callable = func() -> Dictionary:
 		var brain: Dictionary = host.provider_("brain")
