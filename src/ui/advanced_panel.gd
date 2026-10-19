@@ -46,9 +46,8 @@ func setup(owner: Node, native_host: Node = null, native_card: PanelContainer = 
 	_body.add_theme_constant_override("separation",12); column.add_child(_body)
 	var enabled := CheckBox.new(); enabled.name = "ProfileEnabled"; enabled.text = L.text("Использовать профиль")
 	fields.enabled = enabled; _body.add_child(enabled); enabled.toggled.connect(func(_v): _changed())
-	var vision := CheckBox.new(); vision.name = "VisionInput"; vision.text = L.text("Изображения на вход")
-	fields.vision_input = vision; _body.add_child(vision); vision.toggled.connect(func(_v): _changed())
-	_body.add_child(_label(L.text("Разрешает Harness передавать модели снимок игрового окна. Включите профиль; API должен поддерживать изображения.")))
+	_choice("vision_mode",L.text("Изображения на вход"),["auto","on","off"])
+	_body.add_child(_label(L.text("Авто: Harness проверит данные API, а если их нет — изображение при первом использовании. Результат запоминается для API и модели. Не требует включения профиля.")))
 	_caps = _label(""); _caps.name = "CapabilitiesStatus"; _body.add_child(_caps)
 	var update := _button(L.text("Обновить возможности")); update.name = "RefreshCapabilities"; update.text = L.text("Обновить возможности")
 	update.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -121,7 +120,7 @@ func _choice(key: String, title: String, values: Array) -> void:
 	_body.add_child(_label(title))
 	var selector := OptionButton.new(); selector.name = key; selector.fit_to_longest_item = false; selector.clip_text = true
 	selector.size_flags_horizontal = Control.SIZE_EXPAND_FILL; selector.custom_minimum_size.y = 36
-	for value: String in values: selector.add_item(L.text("Автоматически") if value == "auto" else value); selector.set_item_metadata(selector.item_count-1,value)
+	for value: String in values: selector.add_item(L.text("Автоматически") if value == "auto" else (L.text("Включено") if value=="on" else (L.text("Выключено") if value=="off" else value))); selector.set_item_metadata(selector.item_count-1,value)
 	selector.item_selected.connect(func(_i): _changed()); fields[key] = selector; _body.add_child(selector)
 
 func _key() -> String: return JSON.stringify([target_base,target_model])
@@ -140,15 +139,15 @@ func set_target(base: String, model: String, source_label: String = "Выбра�
 
 func _load_profile(profile: Dictionary) -> void:
 	_loading = true
+	profile=Policy.validate(profile).get("profile",{})
 	fields.enabled.button_pressed = bool(profile.get("enabled",false))
-	fields.vision_input.button_pressed = bool(profile.get("vision_input",false))
 	for key: String in ["context_tokens","max_output_tokens","timeout_seconds"]: fields[key].text = str(profile.get(key,0))
 	for key: String in ["reasoning","verbosity"]: fields[key].text = str(profile.get(key,""))
 	for key: String in ["temperature","top_p"]:
 		fields[key+"_auto"].button_pressed = profile.get(key) == null
 		fields[key].editable = profile.get(key) != null
 		fields[key].text = "" if profile.get(key) == null else str(profile[key])
-	for key: String in ["token_field","reasoning_field"]:
+	for key: String in ["token_field","reasoning_field","vision_mode"]:
 		var selector: OptionButton = fields[key]
 		for i: int in selector.item_count:
 			if selector.get_item_metadata(i) == profile.get(key,"auto"): selector.select(i)
@@ -156,17 +155,17 @@ func _load_profile(profile: Dictionary) -> void:
 	_loading = false
 
 func _draft() -> Dictionary:
-	var result := {"enabled":fields.enabled.button_pressed,"vision_input":fields.vision_input.button_pressed,"extra":fields.extra.text}
+	var result := {"enabled":fields.enabled.button_pressed,"extra":fields.extra.text}
 	for key: String in ["context_tokens","max_output_tokens","timeout_seconds","reasoning","verbosity","temperature","top_p"]: result[key] = fields[key].text
 	for key: String in ["temperature_auto","top_p_auto"]: result[key] = fields[key].button_pressed
-	for key: String in ["token_field","reasoning_field"]: result[key] = fields[key].selected
+	for key: String in ["token_field","reasoning_field","vision_mode"]: result[key] = fields[key].selected
 	return result
 
 func _load_draft(draft: Dictionary) -> void:
 	_loading = true
 	for key: String in draft:
-		if key in ["enabled","vision_input","temperature_auto","top_p_auto"]: fields[key].button_pressed = bool(draft[key])
-		elif key in ["token_field","reasoning_field"]: fields[key].select(int(draft[key]))
+		if key in ["enabled","temperature_auto","top_p_auto"]: fields[key].button_pressed = bool(draft[key])
+		elif key in ["token_field","reasoning_field","vision_mode"]: fields[key].select(int(draft[key]))
 		elif fields.has(key): fields[key].text = str(draft[key])
 	for key: String in ["temperature","top_p"]: fields[key].editable = not fields[key+"_auto"].button_pressed
 	_loading = false
@@ -179,7 +178,7 @@ func _changed() -> void:
 
 func collect() -> Dictionary:
 	var errors: Array = []
-	var profile := {"enabled":fields.enabled.button_pressed,"vision_input":fields.vision_input.button_pressed}
+	var profile := {"enabled":fields.enabled.button_pressed}
 	for key: String in ["context_tokens","max_output_tokens","timeout_seconds"]:
 		var text: String = fields[key].text.strip_edges()
 		if not text.is_valid_int(): errors.append(key+L.text(": введите целое число, 0 — автоматически."))
@@ -191,7 +190,7 @@ func collect() -> Dictionary:
 			if not text.is_valid_float(): errors.append(key+L.text(": введите число или включите автоматический режим."))
 			else: profile[key] = float(text)
 	for key: String in ["reasoning","verbosity"]: profile[key] = fields[key].text
-	for key: String in ["token_field","reasoning_field"]: profile[key] = fields[key].get_selected_metadata()
+	for key: String in ["token_field","reasoning_field","vision_mode"]: profile[key] = fields[key].get_selected_metadata()
 	var json := JSON.new()
 	if json.parse(fields.extra.text) != OK: errors.append("JSON: "+json.get_error_message()+L.text(" (строка ")+str(json.get_error_line())+").")
 	elif not json.data is Dictionary: errors.append(L.text("JSON: нужен объект {…}, а не массив или отдельное значение."))

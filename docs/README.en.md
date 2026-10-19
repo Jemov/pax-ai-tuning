@@ -13,7 +13,7 @@ Per-endpoint and per-model generation profiles for **Pax Universe 0.31.5**.
 
 ## Installation
 
-Install **Advanced AI settings** from the launcher's official Workshop and enable it under Mods. Alternatively, close the game and place `ai_tuning-2.3.2.zip` from GitHub Releases in the game's user mods folder without extracting it. Find that folder through Launcher → Mods → Mods folder; on Windows it is normally `%APPDATA%\Pax Universe\mods`.
+Install **Advanced AI settings** from the launcher's official Workshop and enable it under Mods. Alternatively, close the game and place `ai_tuning-2.4.0.zip` from GitHub Releases in the game's user mods folder without extracting it. Find that folder through Launcher → Mods → Mods folder; on Windows it is normally `%APPDATA%\Pax Universe\mods`.
 
 Enable the mod and approve code execution through the normal game prompt if requested. Keep only one installed copy. Replace an older manual installation while the game is closed; Workshop copies update through the launcher.
 
@@ -32,14 +32,14 @@ Choose the endpoint and model through the game's normal connection form. Open Ad
 | Verbosity | Response verbosity when the API supports it. |
 | Temperature | Sampling variation; lower values are more predictable. |
 | Top-p | Probability mass used for token sampling. |
-| Image input | Permit Harness screenshots for a model and API that actually accept images. |
+| Image input | Auto detection in Harness, with Enabled and Disabled overrides. |
 | Additional JSON | Extra generation parameters, for example `{"seed":42}` when supported. |
 
 Zero, a blank value or Automatic leaves the corresponding setting to the game. Refresh capabilities requests model metadata; providers may report only part of it. You can supply exact manual values when needed. Auto is normally appropriate for API field mapping.
 
 Do not put endpoint URLs, authorization, model identities, messages, tools or streaming controls in additional generation JSON. They belong to the game's connection and request pipeline. Unsupported explicit parameters return an error rather than being silently deleted. Actual model/API limits still apply.
 
-Image input requires both Use profile and Image input for the selected endpoint/model. Enabling it does not give a text-only model vision. The mod works on its own and with Pax Harness 1.10.0 or later.
+Image input defaults to Auto and does not require Use profile. [How detection works](vision-auto.md). A manual override does not give a text-only model vision. The mod works on its own and with Pax Harness 1.10.0 or later.
 
 ## Languages and source
 

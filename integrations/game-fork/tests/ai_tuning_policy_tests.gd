@@ -81,7 +81,12 @@ func test_vision() -> void:
 	var original := {"enabled":true,"vision_input":true}
 	var before: Dictionary = original.duplicate(true)
 	var checked: Dictionary = Policy.validate(original)
-	check(Policy.validate({}).profile.get("vision_input") == false,"image-input capability is explicitly opt-in for legacy/empty profiles")
+	check(Policy.validate({}).profile.get("vision_mode") == "auto","fresh install defaults to automatic image detection")
+	check(checked.profile.vision_mode=="on","legacy manual enable migrates")
+	check(Policy.validate({"vision_mode":"off"}).profile.vision_input==false,"explicit Off retained")
+	check(Policy.validate({"vision_mode":"auto","vision_input":true}).profile.vision_input==false,"Auto takes precedence over legacy flag")
+	check(not Policy.validate({"vision_mode":"guess"}).ok,"invalid mode rejected")
+	check(not Policy.validate(profile({"extra":{"vision_mode":"on"}})).ok,"vision mode never becomes API body JSON")
 	check(checked.ok and checked.profile.get("vision_input") == true and original == before,"manual image-input boolean validates without mutating the source profile")
 	for invalid: Variant in [0,1,"true",null,[],{}]:
 		check(not Policy.validate({"vision_input":invalid}).ok,"image-input capability requires an actual boolean")

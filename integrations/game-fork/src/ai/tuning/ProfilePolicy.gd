@@ -2,13 +2,13 @@ extends RefCounted
 ## Pure, explicit generation preferences. No model/provider names or API I/O.
 const MAX_TOKENS := 10000000
 const MAX_EXTRA_BYTES := 65536
-const DEFAULTS := {"enabled":false,"vision_input":false,"context_tokens":0,"max_output_tokens":0,"timeout_seconds":0,"token_field":"auto","reasoning":"","reasoning_field":"auto","verbosity":"","temperature":null,"top_p":null,"extra":{}}
+const DEFAULTS := {"enabled":false,"vision_input":false,"vision_mode":"auto","context_tokens":0,"max_output_tokens":0,"timeout_seconds":0,"token_field":"auto","reasoning":"","reasoning_field":"auto","verbosity":"","temperature":null,"top_p":null,"extra":{}}
 const TOKEN_FIELDS := ["max_tokens","max_completion_tokens","max_output_tokens"]
 const BUDGET_PATHS := ["max_tokens","max_completion_tokens","max_output_tokens","generationConfig.maxOutputTokens"]
 const EFFORT_PATHS := ["reasoning_effort","reasoning.effort","output_config.effort"]
 const GENERATION_GROUPS := [BUDGET_PATHS,EFFORT_PATHS,["verbosity","text.verbosity"],["temperature","generationConfig.temperature"],["top_p","generationConfig.topP"]]
 const PROTECTED := ["model","models","messages","message","system","systeminstruction","system_instruction","instructions","instruction","input","inputs","contents","content","prompt","prompts","tools","tool","tool_choice","tool_calls","functions","function_call","parallel_tool_calls","stream","stream_options","auth","authorization","authentication","api_key","apikey","api_token","access_token","auth_token","token","key","secret","password","credentials","headers","header","cookies","url","uri","base_url","endpoint","host","port","path","proxy","route","provider","destination","method"]
-const PROFILE_ONLY := ["vision_input"]
+const PROFILE_ONLY := ["vision_input","vision_mode"]
 
 static func _integer(value: Variant, zero: bool = true) -> bool:
 	return (value is int or value is float) and not value is bool and is_finite(float(value)) and value == floorf(float(value)) and value >= (0 if zero else 1) and value <= MAX_TOKENS
@@ -112,6 +112,9 @@ static func validate(profile: Dictionary) -> Dictionary:
 		if profile.has(key): clean[key] = profile[key]
 	if not clean.enabled is bool: errors.append("enabled: expected boolean.")
 	if not clean.vision_input is bool: errors.append("vision_input: expected boolean.")
+	if not profile.has("vision_mode"): clean.vision_mode="on" if clean.enabled==true and clean.vision_input==true else "auto"
+	if clean.vision_mode not in ["auto","on","off"]:errors.append("vision_mode: choose auto, on or off.")
+	clean.vision_input=clean.vision_mode=="on"
 	for key: String in ["context_tokens","max_output_tokens"]:
 		if not _integer(clean[key]): errors.append(key+": expected integer 0 (auto) through 10000000.")
 		else: clean[key] = int(clean[key])

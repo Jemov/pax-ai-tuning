@@ -70,5 +70,8 @@
   "ai_tuning_58d6f9733d6e": "Advanced settings  ▸",
   "ai_tuning_0cd8556749b4": "Reasoning effort",
   "ai_tuning_6d20b9b41d15": "Maximum output tokens",
-  "ai_tuning_24d2d216c7ae": "The settings screen is closed."
+  "ai_tuning_24d2d216c7ae": "The settings screen is closed.",
+  "pax_ai_tuning_4d1d43042e73": "Enabled",
+  "pax_ai_tuning_20494f41aba3": "Disabled",
+  "pax_ai_tuning_14f2545e7b37": "Auto: Harness checks API metadata, or tests an image on first use when metadata is missing. The result is remembered per API and model. Does not require enabling the profile."
 }

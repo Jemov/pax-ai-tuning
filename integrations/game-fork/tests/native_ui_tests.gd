@@ -22,7 +22,7 @@ func run() -> void:
 	check(saved.ok and host.reloads == 0 and host.saves == 1 and Paths.fixture.keep.unknown,"menu updates live native settings without detaching retained callbacks")
 	check(Store.current("https://fixture.invalid/v1","Future").vision_input and not Store.current("https://fixture.invalid/v1","Other").vision_input,"native owner persists manual image capability for the exact endpoint/model")
 	panel.set_target("https://fixture.invalid/v1","Other"); panel.set_target("https://fixture.invalid/v1","Future")
-	check(panel.fields.vision_input.button_pressed,"native shared panel restores saved image-input checkbox")
+	check(panel.fields.vision_mode.get_selected_metadata()=="on","native shared panel restores explicit image override")
 	retained_brain.model = "New model"; host.save_it()
 	check(Paths.fixture.providers.brain.model == "New model" and Paths.fixture.providers.brain.key == "OPAQUE","retained native provider alias saves later model edit and preserves opaque key")
 	check(not JSON.stringify(Paths.fixture[Store.SETTING]).contains("OPAQUE"),"native profile section never duplicates connection credentials")
