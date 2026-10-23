@@ -14,7 +14,7 @@ Profiles use a separate `ai_tuning_profiles` section in native settings. Output 
 
 Standard Chat Completions, Responses, Messages and Gemini generation fields are mapped. Ollama-specific generation options need separate mapping; context and automatic settings remain available.
 
-This directory belongs in a fork's source tree. The installable mod is the separate **`ai_tuning-2.4.0.zip`** asset in Releases.
+This directory belongs in a fork's source tree. The installable mod is the separate **`ai_tuning-2.4.1.zip`** asset in Releases. The 0.31.2 patch does not apply cleanly to 0.32.6 and needs a separate port; do not install this source directory as a mod.
 
 [По-русски](README-RU.md)
 

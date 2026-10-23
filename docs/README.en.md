@@ -1,6 +1,6 @@
 # Advanced AI settings
 
-Per-endpoint and per-model generation profiles for **Pax Universe 0.31.5**.
+Per-endpoint and per-model generation profiles for **Pax Universe 0.32.6**. Mod version: **2.4.1**.
 
 [Русское описание](../README.md)
 
@@ -13,7 +13,7 @@ Per-endpoint and per-model generation profiles for **Pax Universe 0.31.5**.
 
 ## Installation
 
-Install **Advanced AI settings** from the launcher's official Workshop and enable it under Mods. Alternatively, close the game and place `ai_tuning-2.4.0.zip` from GitHub Releases in the game's user mods folder without extracting it. Find that folder through Launcher → Mods → Mods folder; on Windows it is normally `%APPDATA%\Pax Universe\mods`.
+Install **Advanced AI settings** from the launcher's official Workshop and enable it under Mods. Alternatively, close the game and place `ai_tuning-2.4.1.zip` from GitHub Releases in the game's user mods folder without extracting it. Find that folder through Launcher → Mods → Mods folder; on Windows it is normally `%APPDATA%\Pax Universe\mods`.
 
 Enable the mod and approve code execution through the normal game prompt if requested. Keep only one installed copy. Replace an older manual installation while the game is closed; Workshop copies update through the launcher.
 
@@ -48,3 +48,5 @@ Full Russian and English interfaces follow the game's selected language, includi
 Entry: `src/main.gd`; profile policy and identity handling are under `src/domain/`, UI adapters under `src/ui/`, and translations under `data/lang/`. The fork integration is separate from the installable ZIP.
 
 The interface follows the game language: Russian for RU, English for EN and all other game languages.
+
+Install the release ZIP. Do not copy `integrations/game-fork` into the installed mod: it targets a 0.31.2 source fork and does not apply as a ready-made patch to 0.32.6. To restore per-request timeouts with Harness, use a Harness build supporting `set_request_timeout`. Provider-specific thinking switches, such as DeepSeek's `thinking`, can be supplied through additional JSON where required.

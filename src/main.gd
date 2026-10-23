@@ -353,16 +353,38 @@ func prepare_native_packet(provider: Node, packet: Dictionary) -> Dictionary:
 	return {"ok":true,"packet":prepared,"errors":[]}
 
 func _set_timeout(destination: HTTPRequest, value: int) -> void:
+	set_request_timeout(destination,value)
+
+## Shared with cooperative transports: an override belongs to one request only.
+func set_request_timeout(destination: HTTPRequest, value: int) -> void:
 	if value <= 0: return
 	_timeouts = _timeouts.filter(func(item: Dictionary): return is_instance_valid(item.node.get_ref()))
 	for item: Dictionary in _timeouts:
 		if item.node.get_ref() == destination:
 			if destination.timeout != item.value: item.prior = destination.timeout
 			item.value = float(value); destination.timeout = float(value); return
-	_timeouts.append({"node":weakref(destination),"prior":destination.timeout,"value":float(value)})
+	var callback: Callable = _timeout_finished.bind(weakref(destination))
+	_timeouts.append({"node":weakref(destination),"prior":destination.timeout,"value":float(value),"callback":callback})
 	destination.timeout = float(value)
+	destination.request_completed.connect(callback,CONNECT_ONE_SHOT)
+
+func _timeout_finished(_result: int, _code: int, _headers: PackedStringArray, _body: PackedByteArray, reference: WeakRef) -> void:
+	var destination: Variant = reference.get_ref()
+	if is_instance_valid(destination): restore_request_timeout(destination)
+
+func restore_request_timeout(destination: HTTPRequest) -> void:
+	for index: int in range(_timeouts.size()-1,-1,-1):
+		var item: Dictionary = _timeouts[index]
+		var node: Variant = item.node.get_ref()
+		if not is_instance_valid(node):
+			_timeouts.remove_at(index)
+		elif node == destination:
+			if node.request_completed.is_connected(item.callback): node.request_completed.disconnect(item.callback)
+			if node.timeout == item.value: node.timeout = item.prior
+			_timeouts.remove_at(index)
 
 func _failure(provider: Node, destination: HTTPRequest, errors: Array, code: String = "ai_tuning_invalid_profile") -> void:
+	restore_request_timeout(destination)
 	var body: Dictionary = {"error":{"type":"invalid_request_error","code":code,"message":"AI tuning: "+"; ".join(PackedStringArray(errors.slice(0,8))).left(2000)}}
 	provider.call_deferred("_curl_answer",destination,400,JSON.stringify(body).to_utf8_buffer())
 
@@ -392,7 +414,9 @@ func _network(destination: HTTPRequest, packet: Dictionary) -> void:
 	var raw: String = JSON.stringify(query[2])
 	if _property(provider,"dump_folder") and str(provider.get("dump_folder")) != "" and provider.has_method("_to_dump"): provider.call("_to_dump",destination,str(query[0]),raw)
 	var sent: bool = bool(provider.call("requests").call("_dispatch_gigachat",destination,raw,query[1],query[0],channel))
-	if not sent: provider.call_deferred("_curl_answer",destination,0,PackedByteArray())
+	if not sent:
+		restore_request_timeout(destination)
+		provider.call_deferred("_curl_answer",destination,0,PackedByteArray())
 
 func _command(args: PackedStringArray) -> String:
 	if args.is_empty() or args[0] == "open":
@@ -403,9 +427,9 @@ func _mod_unloaded() -> void:
 	if is_instance_valid(_localization): _localization.queue_free()
 	_localization = null
 	_detach_transport(); _release_context()
-	for item: Dictionary in _timeouts:
+	for item: Dictionary in _timeouts.duplicate():
 		var destination: Variant = item.node.get_ref()
-		if is_instance_valid(destination) and destination.timeout == item.value: destination.timeout = item.prior
+		if is_instance_valid(destination): restore_request_timeout(destination)
 	_timeouts.clear(); _captures.clear()
 	if is_instance_valid(_metadata): _metadata.cancel_all(); _metadata.queue_free()
 	if is_instance_valid(_ui): _ui.dispose(); _ui.queue_free()

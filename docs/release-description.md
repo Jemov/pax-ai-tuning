@@ -18,7 +18,7 @@
 
 Работает самостоятельно и вместе с Harness. В обычной игре настройки доступны после загрузки партии. В репозитории есть отдельная часть для лаунчера: она работает только после встраивания в форк игры.
 
-Полный русский и английский интерфейс следуют языку игры. Для других языков используется английский. Для **Pax Universe 0.31.6**.
+Полный русский и английский интерфейс следуют языку игры. Для других языков используется английский. Проверено в **Pax Universe 0.32.6**, версия мода **2.4.1**. Исправлено восстановление штатного таймаута после ответа или ошибки. Для совместной работы используйте Harness 1.24.2 или новее. Явные параметры генерации Ollama `/api/chat` не поддерживаются. Старая исходная интеграция для форка 0.31.2 несовместима как готовый патч с 0.32.6 и не входит в установочный ZIP.
 
 ## English
 
@@ -42,4 +42,4 @@ Empty values and automatic mode leave the corresponding parameters to the game. 
 
 Works independently and alongside Harness. In the standard game, settings are available after loading a campaign. The repository also contains a launcher component, which works only when integrated into a game fork.
 
-Full Russian and English follow the game language. Other languages fall back to English. For **Pax Universe 0.31.6**.
+Full Russian and English follow the game language. Other languages fall back to English. Tested in **Pax Universe 0.32.6**, mod version **2.4.1**. Native request timeouts are restored after completion or error. Use Harness 1.24.2 or later for combined use. Explicit Ollama `/api/chat` generation overrides are unsupported. The old 0.31.2 fork source integration does not apply as a ready-made patch to 0.32.6 and is excluded from the installable ZIP.
